@@ -92,6 +92,37 @@ def greedy_agent(board, moves, current_player) -> list[int]:
 
     return move
 
+def look_ahead_agent(pieces, board, moves, current_player) -> list[int]:
+    poss_moves = {}
+    score = float("-inf")
+    opp_player = "W"
+    if current_player == "W":
+        opp_player = "B"
+    
+    for m in moves[current_player]:
+        m_score = 0
+        if board[m[2]][m[3]] != ".":
+            m_score += 10
+
+        new_board = move_piece(board, m)
+        new_moves = get_legal_moves(new_board, pieces)
+        for om in new_moves[opp_player]:
+            if om[2] == m[2] and om[3] == m[3]:
+                m_score -= 10
+                break
+        
+        if m_score in poss_moves:
+            poss_moves[m_score].append(m)
+        else:
+            poss_moves[m_score] = [m]
+
+        if m_score > score:
+            score = m_score
+        
+    move = random.choice(poss_moves[score])
+
+    return move
+
 def move_piece(board, move):
     new_board = [row[:] for row in board]
 
@@ -189,14 +220,14 @@ def display_win(result):
             print("Player B Wins!!")
 
 def record_results(result, turns):
-    with open("random_vs_greedy/data.json", "r") as f:
+    with open("greedy_vs_lookahead/data.json", "r") as f:
         data = json.load(f)
 
     data[result["winner"]][result["reason"]] += 1
     data["total_games"] += 1
     data["total_turns"] += turns
     
-    with open("random_vs_greedy/data.json", "w") as f:
+    with open("greedy_vs_lookahead/data.json", "w") as f:
         json.dump(data, f)
 
 # Game Loop
@@ -247,13 +278,32 @@ def play_game(rules):
         else:
             move = random_agent(moves, state["current_player"])
         ---------------------------------------------------
-        
-        """
 
+        look ahead vs look ahead
+        move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
+        ---------------------------------------------------
+
+        look ahead vs greedy
         if state["current_player"] == "B":
             move = greedy_agent(state["board"], moves, state["current_player"])
         else:
-            move = random_agent(moves, state["current_player"])
+            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
+
+        ---------------------------------------------------
+
+        greedy vs look ahead
+        if state["current_player"] == "W":
+            move = greedy_agent(state["board"], moves, state["current_player"])
+        else:
+            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
+        state = apply_action(state, move)
+        ---------------------------------------------------
+        """
+
+        if state["current_player"] == "W":
+            move = greedy_agent(state["board"], moves, state["current_player"])
+        else:
+            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
         state = apply_action(state, move)
 
         # display(state["board"])
