@@ -1,0 +1,16 @@
+{
+    "W": {
+        "win": 0,
+        "repetition": 0
+    },
+    "B": {
+        "win": 0,
+        "repetition": 0
+    },
+    "tie": {
+        "no moves": 0,
+        "max turns exceeded": 0
+    },
+    "total_games": 0,
+    "total_turns": 0
+}
