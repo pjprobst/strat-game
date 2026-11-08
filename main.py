@@ -80,6 +80,18 @@ def random_agent(moves, current_player) -> list[int]:
 
     return move
 
+def greedy_agent(board, moves, current_player) -> list[int]:
+    move = ""
+    for m in moves[current_player]:
+        if board[m[2]][m[3]] != ".":
+            move = m
+            break
+
+    if move == "":
+        move = random.choice(moves[current_player])
+
+    return move
+
 def move_piece(board, move):
     new_board = [row[:] for row in board]
 
@@ -177,14 +189,14 @@ def display_win(result):
             print("Player B Wins!!")
 
 def record_results(result, turns):
-    with open("run2/data.json", "r") as f:
+    with open("random_vs_greedy/data.json", "r") as f:
         data = json.load(f)
 
     data[result["winner"]][result["reason"]] += 1
     data["total_games"] += 1
     data["total_turns"] += turns
     
-    with open("run2/data.json", "w") as f:
+    with open("random_vs_greedy/data.json", "w") as f:
         json.dump(data, f)
 
 # Game Loop
@@ -209,8 +221,39 @@ def play_game(rules):
     result = get_result(moves, state["previous_moves"], rules["max_repetitions"], state["turns"], rules["max_turns"])
 
     while result is None:
-        # move = get_move(moves, state["current_player"])
+        """
+        human input
+        move = get_move(moves, state["current_player"])
+        ---------------------------------------------------
+
+        random vs random
         move = random_agent(moves, state["current_player"])
+        ---------------------------------------------------
+
+        greedy vs greedy
+        move = greedy_agent(state["board"], moves, state["current_player"])
+        ---------------------------------------------------
+
+        greedy vs random
+        if state["current_player"] == "W":
+            move = greedy_agent(state["board"], moves, state["current_player"])
+        else:
+            move = random_agent(moves, state["current_player"])
+        ---------------------------------------------------
+
+        random vs greedy
+        if state["current_player"] == "B":
+            move = greedy_agent(state["board"], moves, state["current_player"])
+        else:
+            move = random_agent(moves, state["current_player"])
+        ---------------------------------------------------
+        
+        """
+
+        if state["current_player"] == "B":
+            move = greedy_agent(state["board"], moves, state["current_player"])
+        else:
+            move = random_agent(moves, state["current_player"])
         state = apply_action(state, move)
 
         # display(state["board"])
