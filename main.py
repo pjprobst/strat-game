@@ -124,15 +124,28 @@ def look_ahead_agent(pieces, board, moves, current_player) -> list[int]:
 
     return move
 
-def minimax(depth, pieces, board, moves, current_player):
+def minimax(depth, moves, state, rules):
+    board = state["board"]
+    current_player = state["current_player"]
+    pieces = rules["pieces"]
+
     if not moves["B"] and not moves["W"]:
         return 0
 
-    if not moves["B"]:
-        return 1000
-
     if not moves["W"]:
         return -1000
+    
+    if not moves["B"]:
+        return 1000
+    
+    if state["previous_moves"]["W"][1] >= rules["max_repetitions"]:
+        return -1000
+    
+    if state["previous_moves"]["B"][1] >= rules["max_repetitions"]:
+        return 1000
+    
+    if state["turns"] >= rules["max_turns"]:
+        return 0
 
     if depth == 0:
         return evaluate_board(board)
@@ -140,10 +153,10 @@ def minimax(depth, pieces, board, moves, current_player):
     scores = []    
 
     for m in moves[current_player]:
-        new_board = move_piece(board, m)
-        new_moves = get_legal_moves(new_board, pieces)
+        new_state = apply_action(state, m)
+        new_moves = get_legal_moves(new_state["board"], pieces)
 
-        score = minimax(depth-1, pieces, new_board, new_moves, "W" if current_player=="B" else "B")
+        score = minimax(depth-1, new_moves, new_state, rules)
     
         scores.append(score)
 
@@ -165,14 +178,16 @@ def evaluate_board(board):
     
     return score
 
-def minimax_agent(depth, pieces, board, moves, current_player):
+def minimax_agent(depth, moves, state, rules):
+    current_player = state["current_player"]
+    pieces = rules["pieces"]
     m_score = float("-inf")
     poss_moves = {}
     for m in moves[current_player]:
-        new_board = move_piece(board, m)
-        new_moves = get_legal_moves(new_board, pieces)
+        new_state = apply_action(state, m)
+        new_moves = get_legal_moves(new_state["board"], pieces)
 
-        score = minimax(depth-1, pieces, new_board, new_moves, "W" if current_player=="B" else "B")
+        score = minimax(depth-1, new_moves, new_state, rules)
 
         if current_player == "B":
             score = score * -1
@@ -286,14 +301,14 @@ def display_win(result):
             print("Player B Wins!!")
 
 def record_results(result, turns):
-    with open("minimax3_vs_greedy/data.json", "r") as f:
+    with open("data/minimax3_vs_lookahead_v2/data.json", "r") as f:
         data = json.load(f)
 
     data[result["winner"]][result["reason"]] += 1
     data["total_games"] += 1
     data["total_turns"] += turns
     
-    with open("minimax3_vs_greedy/data.json", "w") as f:
+    with open("data/minimax3_vs_lookahead_v2/data.json", "w") as f:
         json.dump(data, f)
 
 # Game Loop
@@ -367,23 +382,23 @@ def play_game(rules):
 
         minimax vs greedy
         if state["current_player"] == "W":
-            move = minimax_agent(X, rules["pieces"], state["board"], moves, state["current_player"])
+            move = minimax_agent(X, moves, state, rules)
         else:
             move = greedy_agent(state["board"], moves, state["current_player"])
         ---------------------------------------------------
 
         minimax vs look ahead
         if state["current_player"] == "W":
-            move = minimax_agent(X, rules["pieces"], state["board"], moves, state["current_player"])
+            move = minimax_agent(X, moves, state, rules)
         else:
             move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
         ---------------------------------------------------
         """
 
         if state["current_player"] == "W":
-            move = minimax_agent(3, rules["pieces"], state["board"], moves, state["current_player"])
+            move = minimax_agent(3, moves, state, rules)
         else:
-            move = greedy_agent(state["board"], moves, state["current_player"])
+            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
         state = apply_action(state, move)
 
         # display(state["board"])
