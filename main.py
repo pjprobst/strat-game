@@ -20,6 +20,7 @@ rules = {
 def display(board):
     for row in board:
         print(" ".join(row))
+    print("")
 
 def get_legal_moves(board, pieces):
     rows = len(board)
@@ -123,6 +124,71 @@ def look_ahead_agent(pieces, board, moves, current_player) -> list[int]:
 
     return move
 
+def minimax(depth, pieces, board, moves, current_player):
+    if not moves["B"] and not moves["W"]:
+        return 0
+
+    if not moves["B"]:
+        return 1000
+
+    if not moves["W"]:
+        return -1000
+
+    if depth == 0:
+        return evaluate_board(board)
+
+    scores = []    
+
+    for m in moves[current_player]:
+        new_board = move_piece(board, m)
+        new_moves = get_legal_moves(new_board, pieces)
+
+        score = minimax(depth-1, pieces, new_board, new_moves, "W" if current_player=="B" else "B")
+    
+        scores.append(score)
+
+    if current_player == "W":
+        return max(scores)
+    else:
+        return min(scores)
+
+
+def evaluate_board(board):
+    score = 0
+    for row in board:
+        for space in row:
+            if space == "W":
+                score += 1
+
+            elif space == "B":
+                score -= 1
+    
+    return score
+
+def minimax_agent(depth, pieces, board, moves, current_player):
+    m_score = float("-inf")
+    poss_moves = {}
+    for m in moves[current_player]:
+        new_board = move_piece(board, m)
+        new_moves = get_legal_moves(new_board, pieces)
+
+        score = minimax(depth-1, pieces, new_board, new_moves, "W" if current_player=="B" else "B")
+
+        if current_player == "B":
+            score = score * -1
+        
+        if score in poss_moves:
+            poss_moves[score].append(m)
+        else:
+            poss_moves[score] = [m]
+
+        if m_score < score:
+            m_score = score
+        
+    move = random.choice(poss_moves[m_score])
+
+    return move
+
 def move_piece(board, move):
     new_board = [row[:] for row in board]
 
@@ -220,14 +286,14 @@ def display_win(result):
             print("Player B Wins!!")
 
 def record_results(result, turns):
-    with open("greedy_vs_lookahead/data.json", "r") as f:
+    with open("minimax3_vs_greedy/data.json", "r") as f:
         data = json.load(f)
 
     data[result["winner"]][result["reason"]] += 1
     data["total_games"] += 1
     data["total_turns"] += turns
     
-    with open("greedy_vs_lookahead/data.json", "w") as f:
+    with open("minimax3_vs_greedy/data.json", "w") as f:
         json.dump(data, f)
 
 # Game Loop
@@ -298,12 +364,26 @@ def play_game(rules):
             move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
         state = apply_action(state, move)
         ---------------------------------------------------
+
+        minimax vs greedy
+        if state["current_player"] == "W":
+            move = minimax_agent(X, rules["pieces"], state["board"], moves, state["current_player"])
+        else:
+            move = greedy_agent(state["board"], moves, state["current_player"])
+        ---------------------------------------------------
+
+        minimax vs look ahead
+        if state["current_player"] == "W":
+            move = minimax_agent(X, rules["pieces"], state["board"], moves, state["current_player"])
+        else:
+            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
+        ---------------------------------------------------
         """
 
         if state["current_player"] == "W":
-            move = greedy_agent(state["board"], moves, state["current_player"])
+            move = minimax_agent(3, rules["pieces"], state["board"], moves, state["current_player"])
         else:
-            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
+            move = greedy_agent(state["board"], moves, state["current_player"])
         state = apply_action(state, move)
 
         # display(state["board"])
