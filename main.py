@@ -1,5 +1,6 @@
 import json
 import random
+import os
 
 pieces = {
     "W": [(1,0), (0, 1), (-1, 0), (0, -1)],
@@ -300,19 +301,63 @@ def display_win(result):
         else:
             print("Player B Wins!!")
 
-def record_results(result, turns):
-    with open("data/minimax3_vs_lookahead_v2/data.json", "r") as f:
+def record_results(result, turns, file_path):
+    with open(file_path, "r") as f:
         data = json.load(f)
 
     data[result["winner"]][result["reason"]] += 1
     data["total_games"] += 1
     data["total_turns"] += turns
     
-    with open("data/minimax3_vs_lookahead_v2/data.json", "w") as f:
+    with open(file_path, "w") as f:
         json.dump(data, f)
 
+def initialize_data(players):
+    p_map = {
+        1:"random",
+        2:"greedy",
+        3:"lookahead",
+        4:"minimax",
+        5:"human"
+    }
+
+    name = f"{p_map[players[0][0]]}{players[0][1]}_vs_{p_map[players[1][0]]}{players[1][1]}"
+
+    init_data = {
+        "W": {
+            "win": 0,
+            "repetition": 0
+        },
+        "B": {
+            "win": 0,
+            "repetition": 0
+        },
+        "tie": {
+            "no moves": 0,
+            "max turns exceeded": 0
+        },
+        "total_games": 0,
+        "total_turns": 0
+    }
+
+    folder_path = f"data/{name}"
+
+    count = 2
+    while os.path.exists(folder_path):
+        folder_path = f"data/{name}_v{count}"
+        count += 1
+
+    file_path = f"{folder_path}/data.json"
+
+    os.makedirs(folder_path, exist_ok=True)
+
+    with open(file_path, "w") as f:
+        json.dump(init_data, f)
+    
+    return file_path
+
 # Game Loop
-def play_game(rules):
+def play_game(rules, players):
     board = [["."] * rules["cols"] for _ in range(rules["rows"])]
 
     previous_moves = {
@@ -328,7 +373,8 @@ def play_game(rules):
     }
 
     state["board"] = set_board(state["board"], rules["starting_positions"])
-    # display(state["board"])
+    if players[0][0] == 5 or players[1][0] == 5:
+        display(state["board"])
     moves = get_legal_moves(state["board"], rules["pieces"])
     result = get_result(moves, state["previous_moves"], rules["max_repetitions"], state["turns"], rules["max_turns"])
 
@@ -396,12 +442,31 @@ def play_game(rules):
         """
 
         if state["current_player"] == "W":
-            move = minimax_agent(3, moves, state, rules)
+            if players[0][0] == 1:
+                move = random_agent(moves, state["current_player"])
+            elif players[0][0] == 2:
+                move = greedy_agent(state["board"], moves, state["current_player"])
+            elif players[0][0] == 3:
+                move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
+            elif players[0][0] == 4:
+                move = minimax_agent(players[0][1], moves, state, rules)
+            elif players[0][0] == 5:
+                move = get_move(moves, state["current_player"])
         else:
-            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
-        state = apply_action(state, move)
+            if players[1][0] == 1:
+                move = random_agent(moves, state["current_player"])
+            elif players[1][0] == 2:
+                move = greedy_agent(state["board"], moves, state["current_player"])
+            elif players[1][0] == 3:
+                move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
+            elif players[1][0] == 4:
+                move = minimax_agent(players[1][1], moves, state, rules)
+            elif players[1][0] == 5:
+                move = get_move(moves, state["current_player"])
 
-        # display(state["board"])
+        state = apply_action(state, move)
+        if players[0][0] == 5 or players[1][0] == 5:
+            display(state["board"])
         moves = get_legal_moves(state["board"], rules["pieces"])
         result = get_result(moves, state["previous_moves"], rules["max_repetitions"], state["turns"], rules["max_turns"])
 
@@ -409,6 +474,87 @@ def play_game(rules):
 
     return result, state["turns"]
 
-for _ in range(1000):
-    result, turns = play_game(rules)
-    record_results(result, turns)
+print(f"1. random\n2. greedy\n3. look ahead\n4. minimax\n5. human")
+p1 = ""
+p2 = ""
+games = ""
+players = []
+
+while p1 == "":
+    p1 = input(f"\nSelect Player W\n>")
+    try:
+        p1 = int(p1)
+    except ValueError:
+        p1 = ""
+    
+    if p1 != "":
+        if p1 < 1 or p1 > 5:
+            p1 = ""
+
+players.append([p1])
+
+if p1 == 4:
+    dep = ""
+    while dep == "":
+        dep = input(f"Enter Depth\n>")
+        try:
+            dep = int(dep)
+        except ValueError:
+            dep = ""
+        
+        if dep != "":
+            if dep < 1:
+                dep = ""
+
+    players[0].append(dep)
+
+else:
+     players[0].append("")
+
+while p2 == "":
+    p2 = input(f"\nSelect Player B\n>")
+    try:
+        p2 = int(p2)
+    except ValueError:
+        p2 = ""
+    
+    if p2 != "":
+        if p2 < 1 or p2 > 5:
+            p2 = ""
+
+players.append([p2])
+
+if p2 == 4:
+    dep = ""
+    while dep == "":
+        dep = input(f"Enter Depth\n>")
+        try:
+            dep = int(dep)
+        except ValueError:
+            dep = ""
+        
+        if dep != "":
+            if dep < 1:
+                dep = ""
+
+    players[1].append(dep)
+
+else:
+     players[1].append("") 
+
+while games == "":
+    games = input(f"Enter Amount of Games\n>")
+    try:
+        games = int(games)
+    except ValueError:
+        games = ""
+    
+    if games != "":
+        if games < 1:
+            games = ""
+
+file_path = initialize_data(players)
+
+for _ in range(games):
+    result, turns = play_game(rules, players)
+    record_results(result, turns, file_path)
