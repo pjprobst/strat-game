@@ -1,0 +1,25 @@
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.checkerboard {
+    display: grid;
+    grid-template-columns: repeat(5, 100px);
+    grid-template-rows: repeat(7, 100px); 
+    width: 500px;
+    height: 700px;
+    border: 2px solid #333;
+}
+
+.checkerboard div {
+    background-color: #f0d9b5; 
+}
+
+.checkerboard div:nth-child(odd) {
+    background-color: #b58863; 
+}
+  
