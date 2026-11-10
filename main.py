@@ -14,8 +14,8 @@ rules = {
     "rows": 5,
     "cols": 5,
     "starting_positions": {
-        "B": [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)],
-        "W": [(4, 0), (4, 1), (4, 2), (4, 3), (4, 4)]
+        "B": [(1, 0), (1, 1), (1, 2), (1, 3), (1, 4)],
+        "W": [(5, 0), (5, 1), (5, 2), (5, 3), (5, 4)]
     }
 }
 
@@ -28,6 +28,10 @@ def get_legal_moves(state, pieces):
     board = state["board"]
     active_piece = state["active_piece"]
     player = state["current_player"]
+    if player == "B":
+        own_goal = "X"
+    else:
+        own_goal = "x"
 
     rows = len(board)
     cols = len(board[0])
@@ -43,7 +47,7 @@ def get_legal_moves(state, pieces):
                 if board[i][j] == player:
                     for dr in pieces[player]:
                         move = [i, j, i + dr[0], j + dr[1]]
-                        if move[2] >= 0 and move[2] < rows and move[3] >= 0 and move[3] < cols and board[move[2]][move[3]] != player:
+                        if move[2] >= 0 and move[2] < rows and move[3] >= 0 and move[3] < cols and board[move[2]][move[3]] != player and board[move[2]][move[3]] != " " and board[move[2]][move[3]] != own_goal and board[move[2]][move[3]] != "#":
                             moves[player].append(move)
     
     else:
@@ -58,7 +62,7 @@ def get_legal_moves(state, pieces):
 
             for dr in pieces[board[i][j]]:
                 move = [i, j, i + dr[0], j + dr[1]]
-                if move[2] >= 0 and move[2] < rows and move[3] >= 0 and move[3] < cols and (move[2], move[3]) not in seen:
+                if move[2] >= 0 and move[2] < rows and move[3] >= 0 and move[3] < cols and (move[2], move[3]) not in seen and board[move[2]][move[3]] != " " and board[move[2]][move[3]] != own_goal and board[move[2]][move[3]] != "#":
                     if board[move[2]][move[3]] == board[i][j]:
                         seen.add((move[2], move[3]))
                         q.append([move[2], move[3]])
@@ -153,7 +157,6 @@ def look_ahead_agent(pieces, state, moves) -> list[int]:
             m_score += 10
 
         new_state = apply_action(state, m)
-        # need to fix later
         new_moves = get_legal_moves(new_state, pieces)
         if len(m) == 4:
             for om in new_moves[opp_player]:
@@ -183,7 +186,8 @@ def minimax(depth, moves, state, rules):
         state["previous_moves"],
         rules["max_repetitions"],
         state["turns"],
-        rules["max_turns"]
+        rules["max_turns"],
+        state["scoreboard"]
     )
 
     if result is not None:
@@ -253,9 +257,14 @@ def minimax_agent(depth, moves, state, rules):
 def move_piece(board, move):
     new_board = [row[:] for row in board]
 
-    temp = new_board[move[0]][move[1]]
-    new_board[move[0]][move[1]] = "."
-    new_board[move[2]][move[3]] = temp
+    if board[move[2]][move[3]] == "X" or board[move[2]][move[3]] == "x":
+        new_board[move[0]][move[1]] = "."
+        new_board[move[2]][move[3]] = "#"
+
+    else:
+        temp = new_board[move[0]][move[1]]
+        new_board[move[0]][move[1]] = "."
+        new_board[move[2]][move[3]] = temp
 
     return new_board
 
@@ -278,14 +287,20 @@ def update_repetitions(previous_moves, current_player, move):
     
     return history
 
-def get_result(board, previous_moves, max_repetitions, turns, max_turns):
+def get_result(board, previous_moves, max_repetitions, turns, max_turns, scoreboard):
     total_white = sum(row.count("W") for row in board)
     total_black = sum(row.count("B") for row in board)
 
-    if total_white == 0 and total_black == 0:
+    if scoreboard["W"] >= 2:
         return {
-            "winner": "tie",
-            "reason": "no moves"
+            "winner": "W",
+            "reason": "win"
+        }
+    
+    elif scoreboard["B"] >= 2:
+        return {
+            "winner": "B",
+            "reason": "win"
         }
 
     elif total_white == 0:
@@ -323,7 +338,13 @@ def get_result(board, previous_moves, max_repetitions, turns, max_turns):
 def apply_action(state, move):
     player = state["current_player"]
 
+    if player == "B":
+        goal = "x"
+    else:
+        goal = "X"
+
     active_piece = state["active_piece"].copy()
+    scoreboard = state["scoreboard"].copy()
 
     if len(move) == 3:
         active_piece[player] = [move[1], move[2]]
@@ -333,9 +354,23 @@ def apply_action(state, move):
             "previous_moves": update_repetitions(state["previous_moves"], player, move),
             "current_player": "B" if player == "W" else "W",
             "turns": state["turns"] + 1,
-            "active_piece": active_piece
+            "active_piece": active_piece,
+            "scoreboard": scoreboard
         }
-    
+
+    elif state["board"][move[2]][move[3]] == goal:
+        active_piece[player] = None
+        scoreboard[player] += 1
+
+        return {
+            "board": move_piece(state["board"], move),
+            "previous_moves": update_repetitions(state["previous_moves"], player, move),
+            "current_player": "B" if player == "W" else "W",
+            "turns": state["turns"] + 1,
+            "active_piece": active_piece,
+            "scoreboard": scoreboard
+        }
+
     else:
         active_piece[player] = [move[2], move[3]]
 
@@ -344,7 +379,8 @@ def apply_action(state, move):
             "previous_moves": update_repetitions(state["previous_moves"], player, move),
             "current_player": "B" if player == "W" else "W",
             "turns": state["turns"] + 1,
-            "active_piece": active_piece
+            "active_piece": active_piece,
+            "scoreboard": state["scoreboard"]
         }
 
 def display_win(result):
@@ -423,7 +459,14 @@ def initialize_data(players):
 
 # Game Loop
 def play_game(rules, players):
-    board = [["."] * rules["cols"] for _ in range(rules["rows"])]
+    board = []
+    for i in range(-1, rules["rows"]+1):
+        if i == -1:
+            board.append(["X", " ", "X", " ", "X"])
+        elif i == rules["rows"]:
+            board.append(["x", " ", "x", " ", "x"])
+        else:
+            board.append(["."] * rules["cols"])
 
     previous_moves = {
         "W": [[], 0],
@@ -435,83 +478,28 @@ def play_game(rules, players):
         "B": None
     }
 
+    scoreboard = {
+        "W": 0,
+        "B": 0
+    }
+
     state = {
         "board": board,
         "current_player": "W",
         "previous_moves": previous_moves,
         "turns": 0,
-        "active_piece": active_piece
+        "active_piece": active_piece,
+        "scoreboard": scoreboard
+
     }
 
     state["board"] = set_board(state["board"], rules["starting_positions"])
     if players[0][0] == 5 or players[1][0] == 5:
         display(state["board"])
     moves = get_legal_moves(state, rules["pieces"])
-    result = get_result(state["board"], state["previous_moves"], rules["max_repetitions"], state["turns"], rules["max_turns"])
+    result = get_result(state["board"], state["previous_moves"], rules["max_repetitions"], state["turns"], rules["max_turns"], state["scoreboard"])
 
     while result is None:
-        """
-        human input
-        move = get_move(moves, state["current_player"])
-        ---------------------------------------------------
-
-        random vs random
-        move = random_agent(moves, state["current_player"])
-        ---------------------------------------------------
-
-        greedy vs greedy
-        move = greedy_agent(state["board"], moves, state["current_player"])
-        ---------------------------------------------------
-
-        greedy vs random
-        if state["current_player"] == "W":
-            move = greedy_agent(state["board"], moves, state["current_player"])
-        else:
-            move = random_agent(moves, state["current_player"])
-        ---------------------------------------------------
-
-        random vs greedy
-        if state["current_player"] == "B":
-            move = greedy_agent(state["board"], moves, state["current_player"])
-        else:
-            move = random_agent(moves, state["current_player"])
-        ---------------------------------------------------
-
-        look ahead vs look ahead
-        move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
-        ---------------------------------------------------
-
-        look ahead vs greedy
-        if state["current_player"] == "B":
-            move = greedy_agent(state["board"], moves, state["current_player"])
-        else:
-            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
-
-        ---------------------------------------------------
-
-        greedy vs look ahead
-        if state["current_player"] == "W":
-            move = greedy_agent(state["board"], moves, state["current_player"])
-        else:
-            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
-        state = apply_action(state, move)
-        ---------------------------------------------------
-
-        minimax vs greedy
-        if state["current_player"] == "W":
-            move = minimax_agent(X, moves, state, rules)
-        else:
-            move = greedy_agent(state["board"], moves, state["current_player"])
-        ---------------------------------------------------
-
-        minimax vs look ahead
-        if state["current_player"] == "W":
-            move = minimax_agent(X, moves, state, rules)
-        else:
-            move = look_ahead_agent(rules["pieces"], state["board"], moves, state["current_player"])
-        ---------------------------------------------------
-        """
-
         if state["current_player"] == "W":
             if players[0][0] == 1:
                 move = random_agent(moves, state["current_player"])
@@ -539,7 +527,7 @@ def play_game(rules, players):
         if players[0][0] == 5 or players[1][0] == 5:
             display(state["board"])
         moves = get_legal_moves(state, rules["pieces"])
-        result = get_result(state["board"], state["previous_moves"], rules["max_repetitions"], state["turns"], rules["max_turns"])
+        result = get_result(state["board"], state["previous_moves"], rules["max_repetitions"], state["turns"], rules["max_turns"], state["scoreboard"])
 
     display_win(result)
 
