@@ -7,10 +7,6 @@ current_game = None
 
 app = FastAPI()
 
-@app.get("/message")
-async def root():
-    return {"message": "Hello World"}
-
 class Settings(BaseModel):
     opp: str
     depth: int | None = None
@@ -24,7 +20,7 @@ async def start_game(settings: Settings):
         "state": engine.create_initial_state(engine.rules),
         "opp": settings.opp,
         "depth": settings.depth,
-        "color": settings.color,
+        "legal_moves": None,
         "result": None
     }
 
@@ -44,6 +40,8 @@ async def start_game(settings: Settings):
         state = engine.apply_action(state, move)
 
         current_game["state"] = state
+    
+    current_game["legal_moves"] = engine.get_legal_moves(current_game["state"], engine.rules["pieces"])[current_game["state"]["current_player"]]
 
     return current_game
 
@@ -65,12 +63,13 @@ async def make_move(request: MoveRequest):
 
     state = current_game["state"]
     result = engine.get_result(state["board"], state["previous_moves"], engine.rules["max_repetitions"], state["turns"], engine.rules["max_turns"], state["scoreboard"])
-    
-    if result is not None:
-        current_game["result"] = result
-        return current_game
 
     legal_moves = engine.get_legal_moves(state, engine.rules["pieces"])
+
+    if result is not None:
+        current_game["result"] = result
+        current_game["legal_moves"] = []
+        return current_game
 
     if request.move not in legal_moves[state["current_player"]]:
         raise HTTPException(status_code=400, detail="Illegal move")
@@ -78,12 +77,13 @@ async def make_move(request: MoveRequest):
     state = engine.apply_action(state, request.move)
     result = engine.get_result(state["board"], state["previous_moves"], engine.rules["max_repetitions"], state["turns"], engine.rules["max_turns"], state["scoreboard"])
 
+    legal_moves = engine.get_legal_moves(state, engine.rules["pieces"])
+
     if result is not None:
         current_game["state"] = state
         current_game["result"] = result
+        current_game["legal_moves"] = []
         return current_game
-
-    legal_moves = engine.get_legal_moves(state, engine.rules["pieces"])
         
     if current_game["opp"] == "random":
         move = engine.random_agent(legal_moves, state["current_player"])
@@ -95,14 +95,17 @@ async def make_move(request: MoveRequest):
         move = engine.minimax_agent(current_game["depth"], legal_moves, state, engine.rules)
     else:
         current_game["state"] = state
+        current_game["legal_moves"] = legal_moves[state["current_player"]]
         return current_game
         
     state = engine.apply_action(state, move)
 
     current_game["state"] = state
+    current_game["legal_moves"] = engine.get_legal_moves(current_game["state"], engine.rules["pieces"])[state["current_player"]]
 
     result = engine.get_result(state["board"], state["previous_moves"], engine.rules["max_repetitions"], state["turns"], engine.rules["max_turns"], state["scoreboard"])
     if result is not None:
+        current_game["legal_moves"] = []
         current_game["result"] = result
 
     return current_game

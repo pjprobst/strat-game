@@ -7,7 +7,7 @@
     <script src="app.js" defer></script>
 </head>
 <body>
-    <div class="oppSelection">
+    <section id="setup-screen">
         <form id="game-settings">
             <p>Choose Your Color:</p>
 
@@ -42,10 +42,14 @@
 
             <button type="submit">Submit</button>
         </form>
-
-        <p id="opp"></p>
-        <p id="color"></p>
-        <p id="message"></p>
-    </div>
+    </section>
+    <section id="game-screen" class="hidden">
+        <p id="game-status"></p>
+        <div class="board-legend" aria-label="Board highlights">
+            <span><i class="legend-swatch network"></i>Current network</span>
+            <span><i class="legend-swatch switch"></i>Switch required</span>
+        </div>
+        <div id="board" class="checkerboard"></div>
+    </section>
 </body>
 </html>
