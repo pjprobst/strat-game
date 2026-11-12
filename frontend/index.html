@@ -4,20 +4,48 @@
     <meta charset="UTF-8">
     <title>Board Game Playtester</title>
     <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
 </head>
 <body>
-    <div class="checkerboard">
-        <div></div><div></div><div></div><div></div><div></div>
-        <div></div><div></div><div></div><div></div><div></div>
-        <div></div><div></div><div></div><div></div><div></div>
-        <div></div><div></div><div></div><div></div><div></div>
-        <div></div><div></div><div></div><div></div><div></div>
-        <div></div><div></div><div></div><div></div><div></div>
-        <div></div><div></div><div></div><div></div><div></div>
-    </div>
+    <div class="oppSelection">
+        <form id="game-settings">
+            <p>Choose Your Color:</p>
 
-    <button id="get-message">Get Message</button>
-    <p id="message"></p>
-    <script src="app.js"></script>  
+            <input type="radio" id="white" name="color" value="W" required/>
+            <label for="white">White</label><br>
+
+            <input type="radio" id="black" name="color" value="B" required/>
+            <label for="black">Black</label><br>
+
+            <p>Choose Opponent:</p>
+
+            <input type="radio" id="random" name="opp" value="random" required/>
+            <label for="random">Random</label><br>
+
+            <input type="radio" id="greedy" name="opp" value="greedy" required/>
+            <label for="greedy">Greedy</label><br>
+
+            <input type="radio" id="look-ahead" name="opp" value="look-ahead" required/>
+            <label for="look-ahead">Look Ahead</label><br>
+
+            <input type="radio" id="minimax" name="opp" value="minimax" required/>
+            <label for="minimax">Minimax</label><br>
+
+            <div id="minimaxWrapper" class="hidden">
+                <label for="depth">Enter depth: <span id="depthValue">3</span></label>
+                <input type="range" id="depth" name="depth" min="1" max="5" value="3" step="1" disabled/>
+                <br><br>
+            </div>
+
+            <input type="radio" id="none" name="opp" value="none" required/>
+            <label for="none">None</label><br>
+
+            <button type="submit">Submit</button>
+        </form>
+
+        <p id="opp"></p>
+        <p id="color"></p>
+        <p id="message"></p>
+    </div>
 </body>
 </html>

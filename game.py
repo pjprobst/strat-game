@@ -124,12 +124,12 @@ def get_move(moves, current_player) -> list[int]:
 
     return move
 
-def random_agent(moves, current_player) -> list[int]:
+def random_agent(moves, current_player):
     move = random.choice(moves[current_player])
 
     return move
 
-def greedy_agent(board, moves, current_player) -> list[int]:
+def greedy_agent(board, moves, current_player):
     poss_moves = []
     for m in moves[current_player]:
         if len(m) == 4 and board[m[2]][m[3]] != ".":
@@ -142,7 +142,7 @@ def greedy_agent(board, moves, current_player) -> list[int]:
 
     return move
 
-def look_ahead_agent(pieces, state, moves) -> list[int]:
+def look_ahead_agent(pieces, state, moves):
     poss_moves = {}
     score = float("-inf")
     opp_player = "W"
@@ -457,8 +457,7 @@ def initialize_data(players):
     
     return file_path
 
-# Game Loop
-def play_game(rules, players):
+def create_initial_state(rules):
     board = []
     for i in range(-1, rules["rows"]+1):
         if i == -1:
@@ -490,10 +489,16 @@ def play_game(rules, players):
         "turns": 0,
         "active_piece": active_piece,
         "scoreboard": scoreboard
-
     }
 
     state["board"] = set_board(state["board"], rules["starting_positions"])
+
+    return state
+
+# Game Loop
+def play_game(rules, players):
+    state = create_initial_state(rules)
+
     if players[0][0] == 5 or players[1][0] == 5:
         display(state["board"])
     moves = get_legal_moves(state, rules["pieces"])
@@ -533,87 +538,91 @@ def play_game(rules, players):
 
     return result, state["turns"]
 
-print(f"1. random\n2. greedy\n3. look ahead\n4. minimax\n5. human")
-p1 = ""
-p2 = ""
-games = ""
-players = []
+def main():
+    print(f"1. random\n2. greedy\n3. look ahead\n4. minimax\n5. human")
+    p1 = ""
+    p2 = ""
+    games = ""
+    players = []
 
-while p1 == "":
-    p1 = input(f"\nSelect Player W\n>")
-    try:
-        p1 = int(p1)
-    except ValueError:
-        p1 = ""
-    
-    if p1 != "":
-        if p1 < 1 or p1 > 5:
+    while p1 == "":
+        p1 = input(f"\nSelect Player W\n>")
+        try:
+            p1 = int(p1)
+        except ValueError:
             p1 = ""
-
-players.append([p1])
-
-if p1 == 4:
-    dep = ""
-    while dep == "":
-        dep = input(f"Enter Depth\n>")
-        try:
-            dep = int(dep)
-        except ValueError:
-            dep = ""
         
-        if dep != "":
-            if dep < 1:
+        if p1 != "":
+            if p1 < 1 or p1 > 5:
+                p1 = ""
+
+    players.append([p1])
+
+    if p1 == 4:
+        dep = ""
+        while dep == "":
+            dep = input(f"Enter Depth\n>")
+            try:
+                dep = int(dep)
+            except ValueError:
                 dep = ""
+            
+            if dep != "":
+                if dep < 1:
+                    dep = ""
 
-    players[0].append(dep)
+        players[0].append(dep)
 
-else:
-     players[0].append("")
+    else:
+        players[0].append("")
 
-while p2 == "":
-    p2 = input(f"\nSelect Player B\n>")
-    try:
-        p2 = int(p2)
-    except ValueError:
-        p2 = ""
-    
-    if p2 != "":
-        if p2 < 1 or p2 > 5:
+    while p2 == "":
+        p2 = input(f"\nSelect Player B\n>")
+        try:
+            p2 = int(p2)
+        except ValueError:
             p2 = ""
-
-players.append([p2])
-
-if p2 == 4:
-    dep = ""
-    while dep == "":
-        dep = input(f"Enter Depth\n>")
-        try:
-            dep = int(dep)
-        except ValueError:
-            dep = ""
         
-        if dep != "":
-            if dep < 1:
+        if p2 != "":
+            if p2 < 1 or p2 > 5:
+                p2 = ""
+
+    players.append([p2])
+
+    if p2 == 4:
+        dep = ""
+        while dep == "":
+            dep = input(f"Enter Depth\n>")
+            try:
+                dep = int(dep)
+            except ValueError:
                 dep = ""
+            
+            if dep != "":
+                if dep < 1:
+                    dep = ""
 
-    players[1].append(dep)
+        players[1].append(dep)
 
-else:
-     players[1].append("") 
+    else:
+        players[1].append("") 
 
-while games == "":
-    games = input(f"Enter Amount of Games\n>")
-    try:
-        games = int(games)
-    except ValueError:
-        games = ""
-    
-    if games != "":
-        if games < 1:
+    while games == "":
+        games = input(f"Enter Amount of Games\n>")
+        try:
+            games = int(games)
+        except ValueError:
             games = ""
+        
+        if games != "":
+            if games < 1:
+                games = ""
 
-file_path = initialize_data(players)
+    file_path = initialize_data(players)
 
-for _ in range(games):
-    result, turns = play_game(rules, players)
-    record_results(result, turns, file_path)
+    for _ in range(games):
+        result, turns = play_game(rules, players)
+        record_results(result, turns, file_path)
+
+if __name__ == "__main__":
+    main()
