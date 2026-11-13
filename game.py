@@ -357,47 +357,47 @@ def get_result(board, previous_moves, max_repetitions, turns, max_turns, scorebo
     if scoreboard["W"] >= 2:
         return {
             "winner": "W",
-            "reason": "win"
+            "reason": "goals"
         }
     
     elif scoreboard["B"] >= 2:
         return {
             "winner": "B",
-            "reason": "win"
+            "reason": "goals"
         }
     
     elif total_white == 0 and total_black == 0:
         if scoreboard["W"] > scoreboard["B"]:
             return {
                 "winner": "W",
-                "reason": "win"
+                "reason": "points"
             }
         elif scoreboard["W"] < scoreboard["B"]:
             return {
                 "winner": "B",
-                "reason": "win"
+                "reason": "points"
             }
         else:
             return {
                 "winner": "tie",
-                "reason": "max turns exceeded"
+                "reason": "points"
             }
 
     elif total_white == 0 or total_black == 0:
         if scoreboard["W"] + total_white > scoreboard["B"] + total_black:
             return {
                 "winner": "W",
-                "reason": "win"
+                "reason": "points"
             }
         elif scoreboard["W"] + total_white < scoreboard["B"] + total_black:
             return {
                 "winner": "B",
-                "reason": "win"
+                "reason": "points"
             }
         else:
             return {
                 "winner": "tie",
-                "reason": "max turns exceeded"
+                "reason": "points"
             }
 
     elif previous_moves["W"][1] >= max_repetitions:
@@ -470,22 +470,26 @@ def apply_action(state, move):
 
 def display_win(result):
     if result["winner"] == "tie":
-        if result["reason"] == "max turns exceeded":
+        if result["reason"] == "points":
+            print("Points Are Equal, Tie Game!!")
+        elif result["reason"] == "max turns exceeded":
             print("Max Turns Exceeded, Tie Game!!")
-        else:
-            print("No Turns Avaliable, Tie Game!!")
-    
+
     elif result["winner"] == "W":
-        if result["reason"] == "repetition":
+        if result["reason"] == "goals":
+            print("Player W Wins by Scoring Two Goals!!")
+        elif result["reason"] == "points":
+            print("Player W Wins on Points!!")
+        elif result["reason"] == "repetition":
             print("Player W Wins by Repetition!!")
-        else:
-            print("Player W Wins!!")
 
     elif result["winner"] == "B":
-        if result["reason"] == "repetition":
+        if result["reason"] == "goals":
+            print("Player B Wins by Scoring Two Goals!!")
+        elif result["reason"] == "points":
+            print("Player B Wins on Points!!")
+        elif result["reason"] == "repetition":
             print("Player B Wins by Repetition!!")
-        else:
-            print("Player B Wins!!")
 
 def record_results(result, turns, file_path):
     with open(file_path, "r") as f:
@@ -511,15 +515,17 @@ def initialize_data(players):
 
     init_data = {
         "W": {
-            "win": 0,
+            "goals": 0,
+            "points": 0,
             "repetition": 0
         },
         "B": {
-            "win": 0,
+            "goals": 0,
+            "points": 0,
             "repetition": 0
         },
         "tie": {
-            "no moves": 0,
+            "points": 0,
             "max turns exceeded": 0
         },
         "total_games": 0,
