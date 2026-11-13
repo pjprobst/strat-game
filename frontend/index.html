@@ -11,7 +11,7 @@
         <form id="game-settings">
             <p>Choose Your Color:</p>
 
-            <input type="radio" id="white" name="color" value="W" required/>
+            <input type="radio" id="white" name="color" value="W" checked/>
             <label for="white">White</label><br>
 
             <input type="radio" id="black" name="color" value="B" required/>
@@ -28,12 +28,12 @@
             <input type="radio" id="look-ahead" name="opp" value="look-ahead" required/>
             <label for="look-ahead">Look Ahead</label><br>
 
-            <input type="radio" id="minimax" name="opp" value="minimax" required/>
+            <input type="radio" id="minimax" name="opp" value="minimax" checked/>
             <label for="minimax">Minimax</label><br>
 
-            <div id="minimaxWrapper" class="hidden">
-                <label for="depth">Enter depth: <span id="depthValue">3</span></label>
-                <input type="range" id="depth" name="depth" min="1" max="5" value="3" step="1" disabled/>
+            <div id="minimaxWrapper">
+                <label for="depth">Enter depth: <span id="depthValue">4</span></label>
+                <input type="range" id="depth" name="depth" min="1" max="7" value="4" step="1"/>
                 <br><br>
             </div>
 

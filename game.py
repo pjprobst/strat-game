@@ -176,7 +176,7 @@ def look_ahead_agent(pieces, state, moves):
 
     return move
 
-def minimax(depth, moves, state, rules):
+def minimax(depth, moves, state, rules, alpha, beta, maximizing):
     board = state["board"]
     current_player = state["current_player"]
     pieces = rules["pieces"]
@@ -190,43 +190,106 @@ def minimax(depth, moves, state, rules):
         state["scoreboard"]
     )
 
+    if depth == 0 or result is not None:
+        return evaluate_board(state, rules)
+    
+    if maximizing:
+        best = float("-inf")  
+
+        for m in moves[current_player]:
+            new_state = apply_action(state, m)
+            new_moves = get_legal_moves(new_state, pieces)
+
+            score = minimax(depth-1, new_moves, new_state, rules, alpha, beta, False)
+        
+            best = max(best, score)
+            alpha = max(alpha, best)
+
+            if alpha >= beta:
+                break
+        
+        return best
+
+    else:
+        best = float("inf")  
+
+        for m in moves[current_player]:
+            new_state = apply_action(state, m)
+            new_moves = get_legal_moves(new_state, pieces)
+
+            score = minimax(depth-1, new_moves, new_state, rules, alpha, beta, True)
+        
+            best = min(best, score)
+            beta = min(beta, best)
+
+            if alpha >= beta:
+                break
+        
+        return best
+
+
+def evaluate_board(state, rules):
+    board = state["board"]
+
+    result = get_result(
+        board,
+        state["previous_moves"],
+        rules["max_repetitions"],
+        state["turns"],
+        rules["max_turns"],
+        state["scoreboard"]
+    )
+
     if result is not None:
         if result["winner"] == "W":
-            return 1000
-        elif result["winner"] == "B":
-            return -1000
+            return 10000
+        if result["winner"] == "B":
+            return -10000
         return 0
-
-    if depth == 0:
-        return evaluate_board(board)
-
-    scores = []    
-
-    for m in moves[current_player]:
-        new_state = apply_action(state, m)
-        new_moves = get_legal_moves(new_state, pieces)
-
-        score = minimax(depth-1, new_moves, new_state, rules)
     
-        scores.append(score)
-
-    if current_player == "W":
-        return max(scores)
-    else:
-        return min(scores)
-
-
-def evaluate_board(board):
     score = 0
-    for row in board:
-        for space in row:
-            if space == "W":
-                score += 1
 
-            elif space == "B":
-                score -= 1
-    
+    score += 400 * (
+        state["scoreboard"]["W"] - state["scoreboard"]["B"]
+    )
+
+    white_pieces = sum(row.count("W") for row in board)
+    black_pieces = sum(row.count("B") for row in board)
+
+    score += 100 * (white_pieces - black_pieces)
+
+    white_targets = capture_targets(state, rules, "W")
+    black_targets = capture_targets(state, rules, "B")
+
+    score += 60 * (len(white_targets) - len(black_targets))
+
+    if state["current_player"] == "W":
+        score += 20 * len(white_targets)
+    else:
+        score -= 20 * len(black_targets)
+
     return score
+
+def capture_targets(state, rules, attacker):
+    victim = "B" if attacker == "W" else "W"
+
+    test_state = state.copy()
+
+    test_state["current_player"] = attacker
+    test_state["active_piece"] = state["active_piece"].copy()
+
+    moves = get_legal_moves(test_state, rules["pieces"])[attacker]
+
+    board = state["board"]
+
+    res = set()
+
+    for move in moves:
+        if len(move) == 4 and board[move[2]][move[3]] == victim:
+            res.add((move[2], move[3]))
+
+    return res
+
 
 def minimax_agent(depth, moves, state, rules):
     current_player = state["current_player"]
@@ -237,7 +300,7 @@ def minimax_agent(depth, moves, state, rules):
         new_state = apply_action(state, m)
         new_moves = get_legal_moves(new_state, pieces)
 
-        score = minimax(depth-1, new_moves, new_state, rules)
+        score = minimax(depth-1, new_moves, new_state, rules, float("-inf"), float("inf"), True if new_state["current_player"] == "W" else False)
 
         if current_player == "B":
             score = score * -1
@@ -302,18 +365,40 @@ def get_result(board, previous_moves, max_repetitions, turns, max_turns, scorebo
             "winner": "B",
             "reason": "win"
         }
+    
+    elif total_white == 0 and total_black == 0:
+        if scoreboard["W"] > scoreboard["B"]:
+            return {
+                "winner": "W",
+                "reason": "win"
+            }
+        elif scoreboard["W"] < scoreboard["B"]:
+            return {
+                "winner": "B",
+                "reason": "win"
+            }
+        else:
+            return {
+                "winner": "tie",
+                "reason": "max turns exceeded"
+            }
 
-    elif total_white == 0:
-        return {
-            "winner": "B",
-            "reason": "win"
-        }
-
-    elif total_black == 0:
-        return {
-            "winner": "W",
-            "reason": "win"
-        }
+    elif total_white == 0 or total_black == 0:
+        if scoreboard["W"] + total_white > scoreboard["B"] + total_black:
+            return {
+                "winner": "W",
+                "reason": "win"
+            }
+        elif scoreboard["W"] + total_white < scoreboard["B"] + total_black:
+            return {
+                "winner": "B",
+                "reason": "win"
+            }
+        else:
+            return {
+                "winner": "tie",
+                "reason": "max turns exceeded"
+            }
 
     elif previous_moves["W"][1] >= max_repetitions:
         return {

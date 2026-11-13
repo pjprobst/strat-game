@@ -24,6 +24,10 @@ async def start_game(settings: Settings):
         "result": None
     }
 
+    print(settings.color + ":", "Human")
+
+    print("W:" if settings.color == "B" else "B:", settings.opp, settings.depth)
+
     if settings.color == "B" and settings.opp != "none":
         state = current_game["state"]
         legal_moves = engine.get_legal_moves(state, engine.rules["pieces"])
@@ -37,6 +41,7 @@ async def start_game(settings: Settings):
         elif current_game["opp"] == "minimax":
             move = engine.minimax_agent(current_game["depth"], legal_moves, state, engine.rules)
         
+        print(state["current_player"], move)
         state = engine.apply_action(state, move)
 
         current_game["state"] = state
@@ -74,6 +79,7 @@ async def make_move(request: MoveRequest):
     if request.move not in legal_moves[state["current_player"]]:
         raise HTTPException(status_code=400, detail="Illegal move")
 
+    print(state["current_player"], request.move)
     state = engine.apply_action(state, request.move)
     result = engine.get_result(state["board"], state["previous_moves"], engine.rules["max_repetitions"], state["turns"], engine.rules["max_turns"], state["scoreboard"])
 
@@ -97,7 +103,8 @@ async def make_move(request: MoveRequest):
         current_game["state"] = state
         current_game["legal_moves"] = legal_moves[state["current_player"]]
         return current_game
-        
+    
+    print(state["current_player"], move)
     state = engine.apply_action(state, move)
 
     current_game["state"] = state
