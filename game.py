@@ -2,6 +2,8 @@ from collections import deque
 import json
 import random
 import os
+import cProfile
+import pstats
 
 pieces = {
     "W": [(1,0), (0, 1), (-1, 0), (0, -1)],
@@ -28,6 +30,7 @@ def get_legal_moves(state, pieces):
     board = state["board"]
     active_piece = state["active_piece"]
     player = state["current_player"]
+
     if player == "B":
         own_goal = "X"
     else:
@@ -190,17 +193,26 @@ def minimax(depth, moves, state, rules, alpha, beta, maximizing):
         state["scoreboard"]
     )
 
-    if depth == 0 or result is not None:
+    if result is not None:
+        if result["winner"] == "W":
+            return 10000
+        if result["winner"] == "B":
+            return -10000
+        return 0
+
+    if depth == 0:
         return evaluate_board(state, rules)
+
+    if moves is None:
+        moves = get_legal_moves(state, pieces)
     
     if maximizing:
-        best = float("-inf")  
+        best = float("-inf")
 
         for m in moves[current_player]:
             new_state = apply_action(state, m)
-            new_moves = get_legal_moves(new_state, pieces)
 
-            score = minimax(depth-1, new_moves, new_state, rules, alpha, beta, False)
+            score = minimax(depth-1, None, new_state, rules, alpha, beta, False)
         
             best = max(best, score)
             alpha = max(alpha, best)
@@ -211,13 +223,12 @@ def minimax(depth, moves, state, rules, alpha, beta, maximizing):
         return best
 
     else:
-        best = float("inf")  
+        best = float("inf")
 
         for m in moves[current_player]:
             new_state = apply_action(state, m)
-            new_moves = get_legal_moves(new_state, pieces)
 
-            score = minimax(depth-1, new_moves, new_state, rules, alpha, beta, True)
+            score = minimax(depth-1, None, new_state, rules, alpha, beta, True)
         
             best = min(best, score)
             beta = min(beta, best)
@@ -230,22 +241,6 @@ def minimax(depth, moves, state, rules, alpha, beta, maximizing):
 
 def evaluate_board(state, rules):
     board = state["board"]
-
-    result = get_result(
-        board,
-        state["previous_moves"],
-        rules["max_repetitions"],
-        state["turns"],
-        rules["max_turns"],
-        state["scoreboard"]
-    )
-
-    if result is not None:
-        if result["winner"] == "W":
-            return 10000
-        if result["winner"] == "B":
-            return -10000
-        return 0
     
     score = 0
 
@@ -258,49 +253,77 @@ def evaluate_board(state, rules):
 
     score += 100 * (white_pieces - black_pieces)
 
-    white_targets = capture_targets(state, rules, "W")
-    black_targets = capture_targets(state, rules, "B")
+    targets = capture_targets(state, rules)
 
-    score += 60 * (len(white_targets) - len(black_targets))
+    white_targets = targets["W"]
+    black_targets = targets["B"]
+
+    score += 60 * (white_targets - black_targets)
 
     if state["current_player"] == "W":
-        score += 20 * len(white_targets)
+        score += 20 * white_targets
     else:
-        score -= 20 * len(black_targets)
+        score -= 20 * black_targets
 
     return score
 
-def capture_targets(state, rules, attacker):
-    victim = "B" if attacker == "W" else "W"
-
-    test_state = state.copy()
-
-    test_state["current_player"] = attacker
-    test_state["active_piece"] = state["active_piece"].copy()
-
-    moves = get_legal_moves(test_state, rules["pieces"])[attacker]
-
+def capture_targets(state, rules):
     board = state["board"]
+    active_piece = state["active_piece"]
+    pieces = rules["pieces"]
 
-    res = set()
+    rows = len(board)
+    cols = len(board[0])
 
-    for move in moves:
-        if len(move) == 4 and board[move[2]][move[3]] == victim:
-            res.add((move[2], move[3]))
+    counts = {}
 
-    return res
+    for attacker, victim in [("W", "B"), ("B", "W")]:
+        origins = []
+        start = active_piece[attacker]
+        targets = set()
+
+        if start is None or board[start[0]][start[1]] != attacker:
+            for i in range(rows):
+                for j in range(cols):
+                    if board[i][j] == attacker:
+                        origins.append((i, j))
+        else:
+            start = tuple(start)
+            seen = {start}
+            q = deque([start])
+
+            while q:
+                i,j = q.popleft()
+
+                for dr in pieces[attacker]:
+                    move = (i + dr[0], j + dr[1])
+                    if move[0] >= 0 and move[0] < rows and move[1] >= 0 and move[1] < cols: 
+                        if board[move[0]][move[1]] == attacker and move not in seen:
+                            seen.add((move[0], move[1]))
+                            q.append((move[0], move[1]))
+            
+            origins = seen
+
+        for r, c in origins:
+            for dr, dc in pieces[attacker]:
+                nr, nc = r + dr, c + dc
+
+                if 0 <= nr < rows and 0 <= nc < cols and board[nr][nc] == victim:
+                    targets.add((nr, nc))
+        
+        counts[attacker] = len(targets)
+    
+    return counts
 
 
 def minimax_agent(depth, moves, state, rules):
     current_player = state["current_player"]
-    pieces = rules["pieces"]
     m_score = float("-inf")
     poss_moves = {}
     for m in moves[current_player]:
         new_state = apply_action(state, m)
-        new_moves = get_legal_moves(new_state, pieces)
 
-        score = minimax(depth-1, new_moves, new_state, rules, float("-inf"), float("inf"), True if new_state["current_player"] == "W" else False)
+        score = minimax(depth-1, None, new_state, rules, float("-inf"), float("inf"), True if new_state["current_player"] == "W" else False)
 
         if current_player == "B":
             score = score * -1
@@ -351,22 +374,22 @@ def update_repetitions(previous_moves, current_player, move):
     return history
 
 def get_result(board, previous_moves, max_repetitions, turns, max_turns, scoreboard):
-    total_white = sum(row.count("W") for row in board)
-    total_black = sum(row.count("B") for row in board)
-
     if scoreboard["W"] >= 2:
         return {
             "winner": "W",
             "reason": "goals"
         }
     
-    elif scoreboard["B"] >= 2:
+    if scoreboard["B"] >= 2:
         return {
             "winner": "B",
             "reason": "goals"
         }
     
-    elif total_white == 0 and total_black == 0:
+    total_white = sum(row.count("W") for row in board)
+    total_black = sum(row.count("B") for row in board)
+    
+    if total_white == 0 and total_black == 0:
         if scoreboard["W"] > scoreboard["B"]:
             return {
                 "winner": "W",
@@ -383,7 +406,7 @@ def get_result(board, previous_moves, max_repetitions, turns, max_turns, scorebo
                 "reason": "points"
             }
 
-    elif total_white == 0 or total_black == 0:
+    if total_white == 0 or total_black == 0:
         if scoreboard["W"] + total_white > scoreboard["B"] + total_black:
             return {
                 "winner": "W",
@@ -400,19 +423,19 @@ def get_result(board, previous_moves, max_repetitions, turns, max_turns, scorebo
                 "reason": "points"
             }
 
-    elif previous_moves["W"][1] >= max_repetitions:
+    if previous_moves["W"][1] >= max_repetitions:
         return {
             "winner": "B",
             "reason": "repetition"
         }
     
-    elif previous_moves["B"][1] >= max_repetitions:
+    if previous_moves["B"][1] >= max_repetitions:
         return {
             "winner": "W",
             "reason": "repetition"
         }
     
-    elif turns >= max_turns:
+    if turns >= max_turns:
         return {
             "winner": "tie",
             "reason": "max turns exceeded"
@@ -716,4 +739,16 @@ def main():
         record_results(result, turns, file_path)
 
 if __name__ == "__main__":
+    profiler = cProfile.Profile()
+
+    profiler.enable()
     main()
+    profiler.disable()
+
+    stats = pstats.Stats(profiler).strip_dirs()
+
+    print("\nMOST TOTAL CPU TIME:")
+    stats.sort_stats("tottime").print_stats(20)
+
+    print("\nMOST CUMULATIVE TIME:")
+    stats.sort_stats("cumtime").print_stats(20)
